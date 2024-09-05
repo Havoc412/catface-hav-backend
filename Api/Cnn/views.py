@@ -10,8 +10,8 @@ from catface_hav_v1.consts import FACE_MODE
 from DB import FaceEmbeddingDB, SQLiteDB
 from Errcode import Ecnn
 
-
 from .utils import test
+
 def cnn_test(request):
     data = {
         "status": 200,
@@ -41,60 +41,56 @@ def detect_cat(request):
 
             if len(faces) == 0:
                 # todo 关于 msg 的架构设计
-                return JsonResponse({'status': Ecnn.NoCatFaceGet, 'message': 'No cat face get.'})
+                return JsonResponse({ 'status': 201 })
             else:
                 face = faces[0]
 
             # search Milvus
             db = FaceEmbeddingDB()
-            results = db.query(face.embedding)
+            results = db.query(face.normed_embedding)
             db.close()
 
             cats = {}
-            for (id, dis) in results:
-                if dis > 0.8:  # todo 需要一个合适的阙值
-                    print(id, dis)
+            for (id, dot) in results:
+                if dot < 0.4:  # todo 需要一个合适的阙值
+                    print(id, dot)
                     continue
                 if id not in cats:
-                    cats[id] = {'id': id, 'cnt': 0, 'conf': 0}
+                    cats[id] = {'cnt': 0, 'conf': 0}
                 cats[id]['cnt'] += 1
-                cats[id]['conf'] += dis
+                cats[id]['conf'] += dot
 
-            # 按平均 dis 升序排序
-            cats_sorted = sorted(cats.items(), key=lambda x: x[1]['dis'] / x[1]['cnt'])
-            print(cats_sorted)
-            ids_sorted = []
-            dis_sum = 0
-            for id, info in cats_sorted:
-                ids_sorted.append(id)
-                info['dis'] /= info['cnt']
-                dis_sum += info['dis']
+            # check - 2  如果为空，一定条件下获取第一个作为参考
+            if len(cats) == 0 and results[0][1] > 0:
+                id, dot = results[0]
+                cats[id] = {'cnt': 1, 'conf': dot}
 
-            def cal_conf(dis):
-                if dis == dis_sum or dis == 0:
-                    return 97
-                return int((1 - dis / dis_sum) * 100)
+            # norm - 1
+            cats_id = []
+            for k, v in cats.items():
+                cats_id.append(k)
+                v['conf'] = int(v['conf'] / v['cnt'] * 100)
 
-            print(ids_sorted, cats_sorted)
             # get_full_data
-            cat_infor = []
+            cats_infor = []
             with SQLiteDB() as db:
-                results = db.fetch_by_ids(ids_sorted)
-                print(results)
+                results = db.fetch_by_ids(cats_id)
+                print(results, cats)
                 for result in results:
+                    id = result[0]
                     infor = {
-                        "id": result[0],
+                        "id": id,
                         "name": result[1],
                         "breed": result[2],
                         "gender": result[3],
-                        "conf": cal_conf(cats[ids_sorted[ids_sorted.index(result[0])]]['dis'])
+                        "conf": cats[id]['conf']
                     }
-                    cat_infor.append(infor)
-            print(cat_infor)
-            cat_infor = sorted(cat_infor, key=lambda x: x['conf'], reverse=True)
+                    cats_infor.append(infor)
+            print(cats_infor)
+            cats_infor_sorted = sorted(cats_infor, key=lambda x: x['conf'], reverse=True)
             data = {
                 "status": 200,
-                "cat_infor_list": cat_infor
+                "cat_infor_list": cats_infor_sorted
             }
             return JsonResponse(data)
         else:

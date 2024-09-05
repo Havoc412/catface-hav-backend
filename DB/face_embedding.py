@@ -1,6 +1,6 @@
 from dotenv import load_dotenv
 
-from .Milivus import Milivus
+from .Milvus import Milvus
 
 class FaceEmbeddingDB():
     def __init__(self, collection_name="face", dim=512, env_path=".env"):
@@ -9,7 +9,7 @@ class FaceEmbeddingDB():
         self.collection_name = collection_name
         self.dim = dim
         # 创建 DB 实例
-        self.milivus = Milivus()
+        self.milvus = Milvus()
 
     def insert(self, embeddings=None, cat_ids=None, description=""):
         assert embeddings is not None, "❌ Error: Must specify [embeddings]!"
@@ -19,19 +19,19 @@ class FaceEmbeddingDB():
             raise  ValueError("缺失 dim 信息！")
 
         # firstly insert Milivus
-        self.milivus.fetch_collection(self.collection_name, self.dim, description=description)
+        self.milvus.fetch_collection(self.collection_name, self.dim, description=description)
 
-        insert_result = self.milivus.insert_vector(embeddings, cat_ids)
+        insert_result = self.milvus.insert_vector(embeddings, cat_ids)
 
         # vector_ids = insert_result.primary_keys  # Milvus 返回的是 primary_keys 属性
 
     def query(self, embedding, k=5):
-        self.milivus.fetch_collection(self.collection_name, self.dim)
-        cat_ids = self.milivus.search(embedding, k)
+        self.milvus.fetch_collection(self.collection_name, self.dim)
+        cat_ids = self.milvus.search(embedding, k)
         return cat_ids
 
     def close(self):
-        self.milivus.disconnect()
+        self.milvus.disconnect()
 
 
 if __name__ == "__main__":

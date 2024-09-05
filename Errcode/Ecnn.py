@@ -1,3 +1,4 @@
+from enum import Enum
 
-class Ecnn(enum):
+class Ecnn(Enum):
     NoCatFaceGet = 201  # No Cat Face Get
