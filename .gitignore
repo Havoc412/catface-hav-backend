@@ -1,0 +1,13 @@
+# created by virtualenv automatically
+/Lib
+/Library
+/Scripts
+/share
+/statics
+/staticfiles
+
+/catface_hav_v1/runs
+/cat-img-for-embedding-test
+/catface_hav_v1/model_zoo/models
+db.sqlite3
+DB/.env

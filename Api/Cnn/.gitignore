@@ -1,0 +1,6 @@
+/test
+/model_zoo/models/group-1/*
+/runs
+
+# 忽略 TP- 开头的待合并文件
+TP-*.py
