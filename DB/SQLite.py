@@ -79,7 +79,8 @@ if __name__ == "__main__":
                 "id": res[0],
                 "name": res[1],
                 "breed": res[2],
-                "gender": res[3]
+                "gender": res[3],
+                "breed_en": res[4]
             }
             cat_infor.append(infor)
     print(cat_infor)

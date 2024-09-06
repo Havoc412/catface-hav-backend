@@ -6,8 +6,8 @@
 /statics
 /staticfiles
 
-/catface_hav_v1/runs
 /cat-img-for-embedding-test
-/catface_hav_v1/model_zoo/models
+/catface_hav_v1
+/catface_hav_before
 db.sqlite3
 DB/.env

@@ -44,6 +44,7 @@ def detect_cat(request):
                 return JsonResponse({ 'status': 201 })
             else:
                 face = faces[0]
+            print(face.breed)
 
             # search Milvus
             db = FaceEmbeddingDB()
@@ -51,12 +52,14 @@ def detect_cat(request):
             db.close()
 
             cats = {}
+            cats_id = []
             for (id, dot) in results:
                 if dot < 0.4:  # todo 需要一个合适的阙值
                     print(id, dot)
                     continue
                 if id not in cats:
                     cats[id] = {'cnt': 0, 'conf': 0}
+                    cats_id.append(id)
                 cats[id]['cnt'] += 1
                 cats[id]['conf'] += dot
 
@@ -64,12 +67,19 @@ def detect_cat(request):
             if len(cats) == 0 and results[0][1] > 0:
                 id, dot = results[0]
                 cats[id] = {'cnt': 1, 'conf': dot}
+                cats_id.append(id)
 
-            # norm - 1
-            cats_id = []
-            for k, v in cats.items():
-                cats_id.append(k)
-                v['conf'] = int(v['conf'] / v['cnt'] * 100)
+            def cal_conf(cat, breed):
+                """
+                结合 embedding 的 conf 和 breed 的 conf 共同计算。
+                :param cat:
+                :param breed:
+                :return:
+                """
+                breed_conf = face.breed['conf'][face.breed['top5'].index(breed)]
+                conf = cat['conf'] / cat['cnt']
+                print(breed_conf, breed, conf)
+                return int(conf * breed_conf * 100)
 
             # get_full_data
             cats_infor = []
@@ -77,13 +87,18 @@ def detect_cat(request):
                 results = db.fetch_by_ids(cats_id)
                 print(results, cats)
                 for result in results:
+                    if result[4] not in face.breed['top5']:
+                        continue
+                    conf = cal_conf(cats[id], result[4])
+                    if conf == 0:
+                        continue
                     id = result[0]
-                    infor = {
+                    infor = {  # todo 之后应该用 model 包装一下。
                         "id": id,
                         "name": result[1],
                         "breed": result[2],
                         "gender": result[3],
-                        "conf": cats[id]['conf']
+                        "conf": conf
                     }
                     cats_infor.append(infor)
             print(cats_infor)
