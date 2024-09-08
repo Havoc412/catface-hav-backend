@@ -6,6 +6,7 @@ class SQLiteDB:
         """ 初始化连接到 SQLite 数据库的类 """
         self.db_file = db_file
         self.conn = None
+        self.connect()
 
     def connect(self):
         """ 创建一个数据库连接到 SQLite 数据库 """
@@ -15,19 +16,31 @@ class SQLiteDB:
         except Error as e:
             print(e)
 
-    def insert_animal(self, id, name, kind, sex):
+    def insert_animal(self, name, kind, sex, breed):
+        """
+        插入一条数据，同时返回 对应的 id。
+        :param name:
+        :param kind:
+        :param sex:
+        :param breed:
+        :return:
+        """
         cursor = self.conn.cursor()
 
         # 插入数据的 SQL 语句
-        sql = 'INSERT INTO Api_catinfor (id, name, kind, sex) VALUES (?, ?, ?, ?)'
+        sql = 'INSERT INTO Api_catinfor (name, kind, sex, breed) VALUES (?, ?, ?, ?)'
 
         try:
             # 执行插入操作
-            cursor.execute(sql, (id, name, kind, sex))
+            cursor.execute(sql, (name, kind, sex, breed))
             self.conn.commit()  # 提交事务
-            print("数据插入成功")
+            # 获取最后插入的 ID
+            last_row_id = cursor.lastrowid
+            return last_row_id  # 返回 ID
         except sqlite3.Error as e:
+            self.conn.rollback()  # 回滚事务
             print(f"数据插入出错: {e}")
+            return None
         finally:
             # 关闭连接
             cursor.close()
@@ -70,17 +83,21 @@ class SQLiteDB:
         self.close()
 
 if __name__ == "__main__":
-    cat_infor = []
-    with SQLiteDB(db_file="../db.sqlite3") as db:
-        results = db.fetch_all()
-        print(results)
-        for res in results:
-            infor = {
-                "id": res[0],
-                "name": res[1],
-                "breed": res[2],
-                "gender": res[3],
-                "breed_en": res[4]
-            }
-            cat_infor.append(infor)
-    print(cat_infor)
+    db = SQLiteDB(db_file="../db.sqlite3")
+    res = db.fetch_by_ids([1, 2, 3 ,4])
+    print(res)
+
+    # cat_infor = []
+    # with SQLiteDB(db_file="../db.sqlite3") as db:
+    #     results = db.fetch_all()
+    #     print(results)
+    #     for res in results:
+    #         infor = {
+    #             "id": res[0],
+    #             "name": res[1],
+    #             "breed": res[2],
+    #             "gender": res[3],
+    #             "breed_en": res[4]
+    #         }
+    #         cat_infor.append(infor)
+    # print(cat_infor)

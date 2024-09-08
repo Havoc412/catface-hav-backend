@@ -11,3 +11,5 @@
 /catface_hav_before
 db.sqlite3
 DB/.env
+TP-*.py
+/test
