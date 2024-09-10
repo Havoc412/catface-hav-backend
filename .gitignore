@@ -9,6 +9,7 @@
 /cat-img-for-embedding-test
 /catface_hav_v1
 /catface_hav_before
+/catface_llm
 db.sqlite3
 DB/.env
 TP-*.py

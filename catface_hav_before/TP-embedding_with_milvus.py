@@ -19,39 +19,38 @@ import numpy as np
 from torch.utils.tensorboard import SummaryWriter
 
 
-from app import FaceAnalysis
+from catface_hav_v1.app import FaceAnalysis
 from catface_hav_v1.structs import Face
 
 
 from DB.face_embedding import FaceEmbeddingDB
 
 """ CONFIG """
-TAR_DIR = r"C:\Users\Havoc\PycharmProjects\YOLOv8\catface_hav_v1\test\data\faces-dif"
+TAR_DIR = r"../cat-img-for-embedding-test"
 embedding_dim = 512
 
 
 if __name__ == '__main__':
-    app = FaceAnalysis(verbose=False, root="./model_zoo/models")
+    app = FaceAnalysis(root="../catface_hav_v1/model_zoo/models", verbose=False)
 
     #  cal all embedding
     embeddings = []
     labels = []
-    # for cat_name in os.listdir(TAR_DIR):
-    #     dir_path = os.path.join(TAR_DIR, cat_name)
-    dir_path = TAR_DIR
-    for img_name in os.listdir(dir_path):
-        img_path = os.path.join(dir_path, img_name)
+    for cat_name in os.listdir(TAR_DIR):
+        dir_path = os.path.join(TAR_DIR, cat_name)
+        for img_name in os.listdir(dir_path):
+            img_path = os.path.join(dir_path, img_name)
 
-        # 特化使用 Face 类，直接导入 obb-pose-at 处理完后的 img。
-        img = cv2.imread(img_path)
-        face = Face()
-        face.img = img
+            # 特化使用 Face 类，直接导入 obb-pose-at 处理完后的 img。
+            img = cv2.imread(img_path)
+            face = Face()
+            face.img = img
 
-        app.get_embedding(face)
-        embeddings.append(list(face.normed_embedding)) # 插入 Milvue 时；同时直接处理掉 norm。
-        # embeddings.append(np.random.normal(0, 0.1, embedding_dim).tolist()) # 插入 Milvue 时，
-        # labels.append(int(cat_name[0]))
-        labels.append(int(img_name[0]))
+            app.only_get_embedding(face)
+            embeddings.append(list(face.normed_embedding)) # 插入 Milvue 时；同时直接处理掉 norm。
+            # embeddings.append(np.random.normal(0, 0.1, embedding_dim).tolist()) # 插入 Milvue 时，
+            labels.append(int(cat_name[0]))
+            # labels.append(int(img_name[0]))
 
         # # test the norm
         # print(np.dot(face.normed_embedding, face.normed_embedding))

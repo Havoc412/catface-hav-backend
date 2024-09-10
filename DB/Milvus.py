@@ -12,7 +12,8 @@ class Milvus:
     def __init__(self):
         self.host = os.getenv('MILVUS_HOST', '127.0.0.1')
         self.port = os.getenv('MILVUS_PORT', '19530')
-        self.db_name = os.getenv('DB_NAME', 'Catface')
+        self.db_name = os.getenv('CNN_DB_NAME', 'Catface')
+        print(self.db_name)
 
         # self.collection_name = collection_name
         self.collection = None
@@ -40,12 +41,12 @@ class Milvus:
             self.collection = Collection(collection_name, schema=schema)  # 新建集合
             print(f"Collection {collection_name} created.")
             self.create_index()
-        # self.load_collection()
+        self.load_collection()
 
     def create_index(self):
         index_params = {
             "index_type": IndexType.IVF_FLAT,  # 选择索引类型
-            "metric_type": MetricType.L2,  # 选择距离计算方式
+            "metric_type": "L2",  # 选择距离计算方式
             "params": {"nlist": 100}  # 索引构建参数
         }
         index = Index(collection, "embedding", index_params)  # 为名为 'embedding' 的向量列创建索引

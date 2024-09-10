@@ -144,7 +144,7 @@ def detect_cat(request):
                 catinfor = catInfor(result)
                 if catinfor._breed not in breed['top5']:
                     continue
-                conf = cal_conf(cats[id], catinfor._breed, breed)
+                conf = cal_conf(cats[catinfor._id], catinfor._breed, breed)
                 if conf > 0:
                     cats_infor.append(catinfor.to_dict_with_conf(conf))
         if len(cats_infor) > 0:

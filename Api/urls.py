@@ -6,5 +6,5 @@ urlpatterns = [
     path("search_sql/", views.search_sql, name="search"),  # 获取 SQLite 中左右数据。
 
     path("cnn/", include('Api.Cnn.urls')),
-    # path("rag/", include('Api.Rag.urls')),
+    path("rag/", include('Api.Rag.urls')),
 ]

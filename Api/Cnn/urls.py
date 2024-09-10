@@ -1,5 +1,5 @@
 from Api.Cnn import views
-from django.urls import path, include
+from django.urls import path
 
 urlpatterns = [
     path("cnn_test/", views.cnn_test, name="cnn_test"),

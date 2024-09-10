@@ -25,7 +25,10 @@ SECRET_KEY = 'django-insecure-%9qkvxv85+je$l62zs=3zuq3f0+=k96@th%2ul3-sj1qbc_i(-
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = [
+    "vv9710nr2082.vicp.fun",
+    "127.0.0.1"
+]
 
 
 # Application definition
@@ -37,8 +40,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',  # info 静态资源相关
+    'corsheaders',  # CORS
     'Api',
-    'corsheaders'  # CORS
 ]
 
 MIDDLEWARE = [
@@ -55,7 +58,7 @@ MIDDLEWARE = [
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
 ]
-# CORS_ALLOW_ALL_ORIGINS = True  # 警告：仅在开发环境中使用
+CORS_ALLOW_ALL_ORIGINS = True  # 警告：仅在开发环境中使用
 
 ROOT_URLCONF = 'catface.urls'
 
