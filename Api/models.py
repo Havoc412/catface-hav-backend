@@ -96,7 +96,7 @@ class catInforGroup:
         """
         self._catInforList = []
         self._attrs = mode.value
-        if not isinstance(cats_id, list):
+        if cats_id is not None and not isinstance(cats_id, list):
             cats_id = list(cats_id)
         return cats_id
 
