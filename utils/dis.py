@@ -25,4 +25,5 @@ def haversine(lat1, lon1, lat2, lon2):
     r = 6371  # 地球平均半径，单位为公里
     return c * r * 1000  # 返回单位为米
 
-# todo 可以包装一层函数
+def haversine_2(pot1, poi2):
+    return haversine(pot1[0], pot1[1], poi2[0], poi2[1])
