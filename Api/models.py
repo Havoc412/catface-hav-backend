@@ -21,7 +21,6 @@ class catInfor(models.Model):
 
     def __init__(self, **kwargs):
         """
-
         :param kwargs: 采取字典的输入形式
         """
         # basic
@@ -69,6 +68,8 @@ class catInfor(models.Model):
             "description": self._description
         }, ensure_ascii=False)
 
+    # def to_dict(self, mode=None):
+
 """
 class：维护一个 catinfor 的数组，或其他集群结构。
 func：作为媒介交互 SQLite3
@@ -103,7 +104,7 @@ class catInforGroup:
         """ 将 SQLite 返回的 tuple 转换为 dict 格式 """
         return {attr: val for attr, val in zip(self._attrs, res)}
 
-    def select(self, cats_id, mode: CatInforSelectMode=CatInforSelectMode.BASIC):
+    def select(self, cats_id=None, mode: CatInforSelectMode=CatInforSelectMode.BASIC):
         """
         目前的版本是 根据 cats_id 主键来查询。
         :param cats_id:
@@ -115,8 +116,12 @@ class catInforGroup:
 
         # create query
         attrs = ', '.join(self._attrs)
-        placeholders = ', '.join('?' for _ in cats_id)  # 创建参数占位符
-        query = f"SELECT {attrs} FROM {self._table_name} WHERE id IN ({placeholders})"
+        query = f"SELECT {attrs} FROM {self._table_name}"
+
+        # 是否增加 id 的条件查询。
+        if cats_id is not None:
+            placeholders = ', '.join('?' for _ in cats_id)  # 创建参数占位符
+            query += f" WHERE id IN ({placeholders})"
 
         # exe serch
         results = self._db.execute_query(query, cats_id)
@@ -130,13 +135,4 @@ class catInforGroup:
 
         # ret：use or not
         return self._catInforList
-
-
-
-
-
-
-
-
-
 

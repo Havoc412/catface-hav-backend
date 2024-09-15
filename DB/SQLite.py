@@ -26,15 +26,6 @@ class SQLiteDB:
             return results
         except Error as e:
             print(e)
-
-    def fetch_by_ids(self, id_list):
-        """ 查询特定 id 列表的记录 """
-        placeholders = ', '.join('?' for _ in id_list)  # 创建参数占位符
-        query = f"SELECT * FROM Api_catinfor WHERE id IN ({placeholders})"
-
-        print(query, id_list)
-        return self.execute_query(query, id_list)
-
     def fetch_all(self, table_name="Api_catinfor"):
         """ 查询全表信息 """
         query = f"SELECT * FROM {table_name}"
