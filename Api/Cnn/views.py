@@ -184,9 +184,9 @@ def add_cat(request):
         infor = {
             'name': request.POST.get('name'),
             'gender': request.POST.get('gender'),
-            'breed': request.POST.get('breed')
+            'breed': request.POST.get('breed')  # get [ch] from front
         }
-        catinfor = catInfor(infor)
+        catinfor = catInfor(**infor)
 
         # FA detect with DBSCAN
         data = file_res['data']

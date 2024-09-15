@@ -37,30 +37,14 @@ class catInfor(models.Model):
         self._latitude = kwargs.get('latitude', None)
         self._longitude = kwargs.get('longitude', None)
 
-        # todo 特殊处理：如果 kind 存在且 breed 未设置，尝试转换 breed
-
+        # 特殊处理：如果 breed_ch 存在且 breed_en 未设置，尝试转换 breed
+        if self._breed_en is None and self._breed is not None:
+            self._breed_en = trans_breed(self._breed, en_to_cn=False)
 
         # 检查是否存在未知的额外参数，增加灵活性
         for key, value in kwargs.items():
             if not hasattr(self, f'_{key}'):
                 setattr(self, f'_{key}', value)
-
-        # if isinstance(infor, tuple):
-        #     self._id = infor[0]
-        #     self._name = infor[1]
-        #     self._gender = infor[2]
-        #     self._kind = infor[3]
-        #     self._breed = infor[4]
-        #     self._description = infor[5]
-        #     # todo 整合新的数据。
-        # elif isinstance(infor, dict):
-        #     self._name = infor['name']
-        #     self._gender = infor['gender']
-        #     self._kind = infor['breed']  # 目前前端是这样写的...
-        #     self._breed = trans_breed(self._kind, en_to_cn=False)  # 中文转英文
-        #     # todo 增加 add_cat 中的【介绍】部分。
-        # else:
-        #     raise ValueError("Infor is not supported!")
 
     def insert_sql(self, db):
         # todo 这里之后应该封装到 model 而不是 db 里。
