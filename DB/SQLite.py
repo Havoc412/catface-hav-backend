@@ -25,7 +25,7 @@ class SQLiteDB:
             cursor.close()
             return results
         except Error as e:
-            print(e)
+            print(f"❌ Err: Query [{query}]", e)
     def fetch_all(self, table_name="Api_catinfor"):
         """ 查询全表信息 """
         query = f"SELECT * FROM {table_name}"

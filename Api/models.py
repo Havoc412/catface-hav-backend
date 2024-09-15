@@ -88,6 +88,9 @@ class catInforGroup:
         self._catInforList = []
         self._attrs = None
 
+        # link to noticeGroup
+        # self._noticeGroup = noticeGroup(self._db)
+
     def init(self, cats_id, mode):
         """
         查询前的初始化：1. 清空 List; 2. 获取 mode 参数; 3. 检查 cats_id.
@@ -135,4 +138,84 @@ class catInforGroup:
 
         # ret：use or not
         return self._catInforList
+
+    def get_name_by_id(self, cat_id):
+        """
+        根据 cat_id 查询 cat_name  # todo 初步用一个简单的 for，之后再优化。
+        :param cat_id:
+        :return:
+        """
+        for catinfor in self._catInforList:
+            if catinfor._id == cat_id:
+                return catinfor._name
+        return "No Name"  # todo 彩蛋()
+
+class notice(models.Model):
+    cat_id = models.IntegerField(verbose_name="猫的id")
+    content = models.CharField(verbose_name="通知内容", max_length=100)
+    human = models.CharField(verbose_name="通知者", max_length=10)
+    time = models.DateTimeField(verbose_name="通知时间", auto_now_add=True)
+    def __init__(self, **kwargs):
+        self._id = kwargs.get('id', None)
+        self._cat_id = kwargs.get('cat_id', None)
+        self._content = kwargs.get('content', None)
+        self._human = kwargs.get('human', None)
+        self._time = kwargs.get('time', None)
+
+        # load other attr
+        for key, value in kwargs.items():
+            if not hasattr(self, f'_{key}'):
+                setattr(self, f'_{key}', value)
+
+    def to_dict_with_name(self, name):
+        return {
+            "id": self._cat_id,
+            "content": self._content,
+            "human": self._human,
+            "time": self._time,
+            "name": name
+        }
+
+class noticeGroup:
+    _table_name = "Api_notice"
+    _attrs = ['id', 'cat_id', 'content', 'human', 'time']
+    def __init__(self, db):
+        self._db = db
+        self._noticeList = []
+
+    def init(self, cats_id):
+        self._noticeList = []
+        if cats_id is not None and not isinstance(cats_id, list):
+            cats_id = list(cats_id)
+        return cats_id
+
+    def tuple_to_dict(self, res):
+        """ 将 SQLite 返回的 tuple 转换为 dict 格式 """
+        return {attr: val for attr, val in zip(self._attrs, res)}
+
+    def select(self, cats_id):
+        cats_id = self.init(cats_id)
+
+        # query
+        attrs = ', '.join(self._attrs)
+        query = f"SELECT {attrs} FROM {self._table_name}"
+
+        # 是否增加 id 的条件查询。
+        if cats_id is not None:
+            placeholders = ', '.join('?' for _ in cats_id)  # 创建参数占位符
+            query += f" WHERE cat_id IN ({placeholders})"
+
+        # exe serch
+        results = self._db.execute_query(query, cats_id)
+
+        # load in List
+        if results is None:
+            return None
+        for res in results:
+            nt = notice(**self.tuple_to_dict(res))  # tip 注意解包
+            self._noticeList.append(nt)
+
+        # ret：use or not
+        return self._noticeList
+
 

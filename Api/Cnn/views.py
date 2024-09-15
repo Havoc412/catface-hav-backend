@@ -10,7 +10,7 @@ from django.views.decorators.http import require_POST
 from catface_hav_v1.app import FaceAnalysis, DBSCAN
 from catface_hav_v1.consts import FACE_MODE
 from catface_hav_v1.utils import merge_breeds
-from Api.models import catInfor, catInforGroup, CatInforSelectMode
+from Api.models import catInfor, catInforGroup, CatInforSelectMode, noticeGroup
 
 from DB import FaceEmbeddingDB, SQLiteDB
 from Errcode import Ecnn
@@ -138,13 +138,14 @@ def detect_cat(request):
                 cats[id]['conf'] += dot * center['cnt']
 
     # Search SQLite3 to get basic data  # todo 同时查询 notice
+    cig = None
     cats_infor = []
     with SQLiteDB() as db:
         cig = catInforGroup(db)
         ret_cats = cig.select(cats_id, CatInforSelectMode.BASIC)
-        del cig  # 单纯当一个媒介
 
         # filter by breed
+        cats_id.clear()
         if ret_cats is not None:
             for catinfor in ret_cats:
                 if catinfor._breed_en not in breed['top5']:
@@ -152,16 +153,28 @@ def detect_cat(request):
                 conf = cal_conf(cats[catinfor._id], catinfor._breed_en, breed)
                 if conf > 0:
                     cats_infor.append(catinfor.to_dict_with_conf(conf))
+                    cats_id.add(catinfor._id)
         del ret_cats
 
     # Check and ret
     if len(cats_infor) > 0:
+        # search SQLite3 to get notice
+        notices = []
+        if len(cats_id) > 0:
+            with SQLiteDB() as db:
+                ng = noticeGroup(db)
+                results = ng.select(cats_id)
+                del ng
+                if results is not None:
+                    for notice in results:
+                        notices.append(notice.to_dict_with_name(cig.get_name_by_id(notice._cat_id)))
         cats_infor_sorted = sorted(cats_infor, key=lambda x: x['conf'], reverse=True)
         print(cats_infor_sorted)
         data = {
             "status": 200,
             "breed": trans_breed(breed['top5'][0]),
-            "cat_infor_list": cats_infor_sorted
+            "cat_infor_list": cats_infor_sorted,
+            "notices": notices
         }
     else:
         data = {
