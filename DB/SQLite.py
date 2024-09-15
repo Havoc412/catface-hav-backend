@@ -6,6 +6,7 @@ class SQLiteDB:
         """ 初始化连接到 SQLite 数据库的类 """
         self.db_file = db_file
         self.conn = None
+
         self.connect()
 
     def connect(self):
@@ -15,10 +16,33 @@ class SQLiteDB:
             print("Connection established to database.")
         except Error as e:
             print(e)
+    def execute_query(self, query, params=None):
+        """ 执行 SQL 查询并返回结果 """
+        try:
+            cursor = self.conn.cursor()
+            cursor.execute(query, params or ())
+            results = cursor.fetchall()
+            cursor.close()
+            return results
+        except Error as e:
+            print(e)
+
+    def fetch_by_ids(self, id_list):
+        """ 查询特定 id 列表的记录 """
+        placeholders = ', '.join('?' for _ in id_list)  # 创建参数占位符
+        query = f"SELECT * FROM Api_catinfor WHERE id IN ({placeholders})"
+
+        print(query, id_list)
+        return self.execute_query(query, id_list)
+
+    def fetch_all(self, table_name="Api_catinfor"):
+        """ 查询全表信息 """
+        query = f"SELECT * FROM {table_name}"
+        return self.execute_query(query)
 
     def insert_animal(self, name, kind, sex, breed):
         """
-        插入一条数据，同时返回 对应的 id。
+        插入一条数据，同时返回 对应的 id。  # todo 之后转移到 catInofr 中
         :param name:
         :param kind:
         :param sex:
@@ -45,28 +69,6 @@ class SQLiteDB:
             # 关闭连接
             cursor.close()
 
-    def execute_query(self, query, params=None):
-        """ 执行 SQL 查询并返回结果 """
-        try:
-            cursor = self.conn.cursor()
-            cursor.execute(query, params or ())
-            results = cursor.fetchall()
-            cursor.close()
-            return results
-        except Error as e:
-            print(e)
-
-    def fetch_by_ids(self, id_list):
-        """ 查询特定 id 列表的记录 """
-        placeholders = ', '.join('?' for _ in id_list)  # 创建参数占位符
-        query = f"SELECT * FROM Api_catinfor WHERE id IN ({placeholders})"
-        return self.execute_query(query, id_list)
-
-    def fetch_all(self, table_name="Api_catinfor"):
-        """ 查询全表信息 """
-        query = f"SELECT * FROM {table_name}"
-        return self.execute_query(query)
-
     def close(self):
         """ 关闭数据库连接 """
         if self.conn:
@@ -84,7 +86,12 @@ class SQLiteDB:
 
 if __name__ == "__main__":
     db = SQLiteDB(db_file="../db.sqlite3")
-    res = db.fetch_by_ids([1, 2, 3 ,4])
+
+    # query = "SELECT (id, name, sex, breed, breed_en) FROM Api_catinfor WHERE id IN (?, ?)"
+    # params = [1, 4]
+    # res = db.execute_query(query, params)
+
+    res = db.fetch_by_ids([1, 4])
     print(res)
 
     # cat_infor = []

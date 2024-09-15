@@ -22,4 +22,6 @@ def main():
 
 
 if __name__ == '__main__':
+    # todo DB 连接检查。
+
     main()

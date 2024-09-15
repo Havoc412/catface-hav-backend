@@ -4,11 +4,13 @@ import numpy as np
 
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
+
 
 from catface_hav_v1.app import FaceAnalysis, DBSCAN
 from catface_hav_v1.consts import FACE_MODE
 from catface_hav_v1.utils import merge_breeds
-from Api.models import catInfor
+from Api.models import catInfor, catInforGroup, CatInforSelectMode
 
 from DB import FaceEmbeddingDB, SQLiteDB
 from Errcode import Ecnn
@@ -35,8 +37,8 @@ def handle_file_upload(f, u):
             destination.write(chunk)
     return file_path
 
-
 # @csrf_exempt
+@require_POST
 def detect_cat(request):
     """
     这是一个 1：k 的任务。
@@ -44,125 +46,129 @@ def detect_cat(request):
     :param request:
     :return:
     """
-    if request.method == 'POST':
-        # FILE handle
-        file = request.FILES.get('file')
-        if not file:
-            return JsonResponse({'status': 400, 'message': 'No file provided'})
-        err, file_res = load_temp_file(file)  # 类似 go 的写法;
-        if err:
-            return JsonResponse({'status': 400, **file_res})
+    # FILE handle
+    file = request.FILES.get('file')
+    if not file:
+        return JsonResponse({'status': 400, 'message': 'No file provided'})
+    err, file_res = load_temp_file(file)  # 类似 go 的写法;
+    if err:
+        return JsonResponse({'status': 400, **file_res})
 
-        # start Embedding model
-        data = file_res['data']
-        app = FaceAnalysis(root="./catface_hav_v1/model_zoo/models", verbose=False)
-        faces = app.get(data, mode=FACE_MODE.single)
+    # start Embedding model
+    data = file_res['data']
+    app = FaceAnalysis(root="./catface_hav_v1/model_zoo/models", verbose=False)
+    faces = app.get(data, mode=FACE_MODE.single)
 
-        if file_res['tmp_file_created']:
-            data.release()  # 释放视频文件
-            os.unlink(file_res['tmp_file_path'])  # 删除临时文件
+    if file_res['tmp_file_created']:
+        data.release()  # 释放视频文件
+        os.unlink(file_res['tmp_file_path'])  # 删除临时文件
 
-        # handle faces to centers
-        """
-        center: {
-            'embedding': normed,
-            'cnt': power,  # cnt 同时也作为 breeds 中 conf 的【二次置信度】
-            'breed': { # face.breed,
-                'top5': [], # en; maybe more than 5.
-                'conf': [],
-            } 
-        }
-        """
-        if len(faces) == 0:
-            return JsonResponse({ 'status': Ecnn.NoCatFaceGet })
-        elif len(faces) == 1:
-            face = faces[0]
-            centers = [{
-                'embedding': face.normed_embedding,
-                'cnt': 1,
-                'breed': face.breed
-            }]
-        else:
-            dbscan = DBSCAN(eps=.3, verbose=False)
-            centers = dbscan.filtrate_embeddings(faces)
+    # handle faces to centers
+    """
+    center: {
+        'embedding': normed,
+        'cnt': power,  # cnt 同时也作为 breeds 中 conf 的【二次置信度】
+        'breed': { # face.breed,
+            'top5': [], # en; maybe more than 5.
+            'conf': [],
+        } 
+    }
+    """
+    if len(faces) == 0:
+        return JsonResponse({ 'status': Ecnn.NoCatFaceGet })
+    elif len(faces) == 1:
+        face = faces[0]
+        centers = [{
+            'embedding': face.normed_embedding,
+            'cnt': 1,
+            'breed': face.breed
+        }]
+    else:
+        dbscan = DBSCAN(eps=.3, verbose=False)
+        centers = dbscan.filtrate_embeddings(faces)
 
-        # merge breed
-        """
-        breed: {
-            'top5': [],
-            'conf': []
-        }
-        """
-        if len(centers) > 1:
-            cnt_sum = 0
-            for center in centers:
-                cnt_sum += center['cnt']
-                for i in range(len(center['breed']['conf'])):
-                    center['breed']['conf'][i] *= center['cnt']
-            breed = merge_breeds([center['breed'] for center in centers], cnt_sum)
-        else:
-            breed = centers[0]['breed']
+    # merge breed
+    """
+    breed: {
+        'top5': [],
+        'conf': []
+    }
+    """
+    if len(centers) > 1:
+        cnt_sum = 0
+        for center in centers:
+            cnt_sum += center['cnt']
+            for i in range(len(center['breed']['conf'])):
+                center['breed']['conf'][i] *= center['cnt']
+        breed = merge_breeds([center['breed'] for center in centers], cnt_sum)
+    else:
+        breed = centers[0]['breed']
 
-        # CAL dot by Milvus
-        cats = {}  # 根据 embedding 计算出的 待筛选目标。
-        """
-        cat: {
-            'conf': 
-            'cnt': 
-        }
-        """
-        cats_id = set()
-        with FaceEmbeddingDB() as db:
-            for center in centers:
-                results = db.query(center['embedding'])
-                flag_save_any = False
-                for (id, dot) in results:
-                    if dot < 0.4:  # todo 需要一个合适的阙值
-                        print(id, dot)
-                        continue
-                    if id not in cats_id:
-                        if not flag_save_any:
-                            flag_save_any = True
-                        cats[id] = {'cnt': 0, 'conf': 0}
-                        cats_id.add(id)
-                    cats[id]['cnt'] += 1 * center['cnt']
-                    cats[id]['conf'] += dot * center['cnt']
-                # when not any one get
-                if not flag_save_any and results[0][1] > 0:
-                    id, dot = results[0]
-                    if id not in cats_id:
-                        cats[id] = {'cnt': 0, 'conf': 0}
-                        cats_id.add(id)
-                    cats[id]['cnt'] += 1 * center['cnt']
-                    cats[id]['conf'] += dot * center['cnt']
-
-        # Search SQLite3 to get full data
-        cats_infor = []
-        with SQLiteDB() as db:
-            results = db.fetch_by_ids(list(cats_id))
-            for result in results:
-                catinfor = catInfor(result)
-                if catinfor._breed not in breed['top5']:
+    # CAL dot by Milvus
+    cats = {}  # 根据 embedding 计算出的 待筛选目标。
+    """
+    cat: {
+        'conf': 
+        'cnt': 
+    }
+    """
+    cats_id = set()
+    with FaceEmbeddingDB() as db:
+        for center in centers:
+            results = db.query(center['embedding'])
+            flag_save_any = False
+            for (id, dot) in results:
+                if dot < 0.4:  # todo 需要一个合适的阙值
+                    print(id, dot)
                     continue
-                conf = cal_conf(cats[catinfor._id], catinfor._breed, breed)
+                if id not in cats_id:
+                    if not flag_save_any:
+                        flag_save_any = True
+                    cats[id] = {'cnt': 0, 'conf': 0}
+                    cats_id.add(id)
+                cats[id]['cnt'] += 1 * center['cnt']
+                cats[id]['conf'] += dot * center['cnt']
+            # when not any one get
+            if not flag_save_any and results[0][1] > 0:
+                id, dot = results[0]
+                if id not in cats_id:
+                    cats[id] = {'cnt': 0, 'conf': 0}
+                    cats_id.add(id)
+                cats[id]['cnt'] += 1 * center['cnt']
+                cats[id]['conf'] += dot * center['cnt']
+
+    # Search SQLite3 to get basic data  # todo 同时查询 notice
+    cats_infor = []
+    with SQLiteDB() as db:
+        cig = catInforGroup(db)
+        ret_cats = cig.select(cats_id, CatInforSelectMode.BASIC)
+        del cig  # 单纯当一个媒介
+
+        # filter by breed
+        if ret_cats is not None:
+            for catinfor in ret_cats:
+                if catinfor._breed_en not in breed['top5']:
+                    continue
+                conf = cal_conf(cats[catinfor._id], catinfor._breed_en, breed)
                 if conf > 0:
                     cats_infor.append(catinfor.to_dict_with_conf(conf))
-        if len(cats_infor) > 0:
-            cats_infor_sorted = sorted(cats_infor, key=lambda x: x['conf'], reverse=True)
-            print(cats_infor_sorted)
-            data = {
-                "status": 200,
-                "breed": trans_breed(breed['top5'][0]),
-                "cat_infor_list": cats_infor_sorted
-            }
-        else:
-            data = {
-                "status": Ecnn.NoCatMatch,
-                "breed": trans_breed(breed['top5'][0])
-            }
-        return JsonResponse(data)
+        del ret_cats
+
+    # Check and ret
+    if len(cats_infor) > 0:
+        cats_infor_sorted = sorted(cats_infor, key=lambda x: x['conf'], reverse=True)
+        print(cats_infor_sorted)
+        data = {
+            "status": 200,
+            "breed": trans_breed(breed['top5'][0]),
+            "cat_infor_list": cats_infor_sorted
+        }
     else:
-        return JsonResponse({'status': 200, 'message': 'Invalid request'})
+        data = {
+            "status": Ecnn.NoCatMatch,
+            "breed": trans_breed(breed['top5'][0])
+        }
+    return JsonResponse(data)
 
 def add_cat(request):
     if request.method == 'POST':
