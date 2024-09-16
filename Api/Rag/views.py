@@ -3,7 +3,7 @@ import json
 from django.http import JsonResponse
 
 from DB import SQLiteDB
-from Api.models import catInfor
+from Api.models import catInfor, catInforGroup, CatInforSelectMode
 
 from catface_llm.LLM.LLM import GLM4Chat, Ollama3
 from catface_llm.consts import LLM_CHAT_CORE_TASK
@@ -54,9 +54,12 @@ def detect_help(request):
         # search cats's infor
         contents = []
         with SQLiteDB() as db:
-            results = db.fetch_by_ids(list(cats_id))
-            for result in results:
-                catinfor = catInfor(result)
+            cig = catInforGroup(db)
+            results = cig.select(cats_id, mode=CatInforSelectMode.RAG_BASIC)
+            del cig
+
+            # results = db.fetch_by_ids(list(cats_id))
+            for catinfor in results:
                 contents.append(catinfor.get_infor_for_rag())
 
         print(contents)

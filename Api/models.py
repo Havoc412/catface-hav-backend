@@ -19,6 +19,9 @@ class catInfor(models.Model):
     latitude = models.DecimalField(verbose_name="纬度", max_digits=9, decimal_places=6, default=30.533741)
     longitude = models.DecimalField(verbose_name="经度", max_digits=9, decimal_places=6, default=114.361543)
 
+    _attrs = ['name', 'sex', 'breed', 'breed_en', 'description', 'activity_radius', 'latitude', 'longitude']
+    _table_name = "Api_catinfor"
+
     def __init__(self, **kwargs):
         """
         :param kwargs: 采取字典的输入形式
@@ -30,11 +33,11 @@ class catInfor(models.Model):
         self._breed = kwargs.get('breed', None)
         self._breed_en = kwargs.get('breed_en', None)
         # description
-        self._description = kwargs.get('description', None)
+        self._description = kwargs.get('description', "")
         # poi
-        self._activity_radius = kwargs.get('activity_radius', None)
-        self._latitude = kwargs.get('latitude', None)
-        self._longitude = kwargs.get('longitude', None)
+        self._activity_radius = kwargs.get('activity_radius', 100)
+        self._latitude = kwargs.get('latitude', 30.533741)
+        self._longitude = kwargs.get('longitude', 114.361543)
 
         # 特殊处理：如果 breed_ch 存在且 breed_en 未设置，尝试转换 breed
         if self._breed_en is None and self._breed is not None:
@@ -45,9 +48,36 @@ class catInfor(models.Model):
             if not hasattr(self, f'_{key}'):
                 setattr(self, f'_{key}', value)
 
-    def insert_sql(self, db):
-        # todo 这里之后应该封装到 model 而不是 db 里。
-        self._id = db.insert_animal(self._name, self._kind, self._gender, self._breed)
+    def get_insert_values(self):
+        # todo 之后换一种 更方便的 方式。
+        return [self._name, self._gender, self._breed, self._breed_en, self._description,
+                self._activity_radius, self._latitude, self._longitude]
+
+    def insert(self, db):
+        # # 获取所有属性  # 这种方式有些难把控
+        # attrs = [attr for attr in dir(self) if
+        #          attr.startswith('_') and not callable(getattr(self, attr)) and not attr.startswith('__')]
+        # attrs = [attr for attr in attrs if attr != '_id']  # 排除 _id 属性
+        # attrs = [attr[1:] for attr in attrs]  # 去掉下划线前缀
+        #
+        # # 构建 SQL 查询
+        # placeholders = ', '.join(['?'] * len(attrs))
+        # query = f"INSERT INTO {self._table_name} ({', '.join(attrs)}) VALUES ({placeholders})"
+        #
+        # # 获取属性值
+        # values = [getattr(self, f'_{attr}') for attr in attrs]
+
+        # pre
+        attrs = ', '.join(self._attrs)
+        placeholders = ', '.join('?' for _ in self._attrs)  # 创建参数占位符
+
+        query = f"INSERT INTO {self._table_name} ({attrs}) VALUES ({placeholders})"
+        values = self.get_insert_values()
+
+        # 执行插入操作
+        self._id = db.insert(query, values)
+
+        print(self._id)
 
     def to_dict_with_conf(self, conf=None):
         assert conf is not None
@@ -64,7 +94,7 @@ class catInfor(models.Model):
         return json.dumps({
             "name": self._name,
             "gender": self._gender,
-            "breed": self._kind,
+            "breed": self._breed,
             "description": self._description
         }, ensure_ascii=False)
 
@@ -79,6 +109,7 @@ ps. 尽可能解耦，不同储存容器中的顺序并不重要；以及，一�
 class CatInforSelectMode(Enum):
     BASIC = ["id", "name", "sex", "breed", "breed_en"]
     POI = ["id", "longitude", "latitude", "activity_radius"]
+    RAG_BASIC = ["id", "name", "sex", "breed", "description"]
 
 class catInforGroup:
     _table_name = "Api_catinfor"

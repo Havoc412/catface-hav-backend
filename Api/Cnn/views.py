@@ -196,7 +196,7 @@ def add_cat(request):
 
         infor = {
             'name': request.POST.get('name'),
-            'gender': request.POST.get('gender'),
+            'sex': request.POST.get('gender'),
             'breed': request.POST.get('breed')  # get [ch] from front
         }
         catinfor = catInfor(**infor)
@@ -234,7 +234,8 @@ def add_cat(request):
 
         # Save to SQLite3
         with SQLiteDB() as db:
-            catinfor.insert_sql(db)  # 于是就得到了 ID
+            catinfor.insert(db)  # 于是就得到了 ID
+            # catinfor.save()
             # save avatar
             cv2.imwrite(f"./Api/static/images/cats/{catinfor._id}.jpg", data)
 

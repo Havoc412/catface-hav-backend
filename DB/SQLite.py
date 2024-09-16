@@ -31,30 +31,23 @@ class SQLiteDB:
         query = f"SELECT * FROM {table_name}"
         return self.execute_query(query)
 
-    def insert_animal(self, name, kind, sex, breed):
+    def insert(self, query, params=None):
         """
-        插入一条数据，同时返回 对应的 id。  # todo 之后转移到 catInofr 中
-        :param name:
-        :param kind:
-        :param sex:
-        :param breed:
+        插入一条数据，同时返回 对应的 id。
         :return:
         """
         cursor = self.conn.cursor()
 
-        # 插入数据的 SQL 语句
-        sql = 'INSERT INTO Api_catinfor (name, kind, sex, breed) VALUES (?, ?, ?, ?)'
-
         try:
             # 执行插入操作
-            cursor.execute(sql, (name, kind, sex, breed))
+            cursor.execute(query, params or ())
             self.conn.commit()  # 提交事务
             # 获取最后插入的 ID
             last_row_id = cursor.lastrowid
             return last_row_id  # 返回 ID
         except sqlite3.Error as e:
             self.conn.rollback()  # 回滚事务
-            print(f"数据插入出错: {e}")
+            print(f"❌ 数据插入出错: {e}, {query}", params)
             return None
         finally:
             # 关闭连接

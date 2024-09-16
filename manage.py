@@ -7,6 +7,12 @@ from dotenv import load_dotenv
 load_dotenv("./DB/.env")
 
 
+from DB import Milvus
+
+def check_database_available():
+    milvus = Milvus()
+    print("🐱 Milivus is available.")
+
 def main():
     """Run administrative tasks."""
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'catface.settings')
@@ -22,6 +28,5 @@ def main():
 
 
 if __name__ == '__main__':
-    # todo DB 连接检查。
-
+    check_database_available()
     main()
