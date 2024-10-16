@@ -88,11 +88,15 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3'
-        # 'NAME': 'catface',
-        # "USER": 'root',
-        # "PASSWORD": 'havocantelope412',
-        # "HOST": 'localhost',
-        # "PROT": 3306
+    },
+    'mysql': {  # ATT 但是需求也不是很复杂，用 ORM 可能还不如直接 SQL 快。
+        'ENGINE': 'django.db.backends.mysql',  # 修改成MySQL数据库
+        'NAME': 'hav_cats',  # 连接数据库名称 先创建好才能指定
+        'USER':'root',  # 数据库名称
+        'PASSWORD':'Havocantelope412#',  # 数据库密码
+        'HOST':'113.44.68.213',  # 数据库ip 本地回环地址
+        'PORT':3306,  # 数据库端口
+        'CHARSET':'utf8'  # 指定字符编码
     }
 }
 

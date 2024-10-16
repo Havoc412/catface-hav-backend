@@ -12,6 +12,9 @@ ROOT_DIR
 │   ├── 2.jpg
 │   └── ...
 └── ...
+
+Features:
+1. 忽略目标文件夹下 . 开头的目标。
 """
 import os
 import cv2
@@ -37,6 +40,8 @@ if __name__ == '__main__':
     embeddings = []
     labels = []
     for cat_name in os.listdir(TAR_DIR):
+        if cat_name.startswith('.'):
+            continue
         dir_path = os.path.join(TAR_DIR, cat_name)
         for img_name in os.listdir(dir_path):
             img_path = os.path.join(dir_path, img_name)

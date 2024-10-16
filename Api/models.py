@@ -141,7 +141,7 @@ class catInforGroup:
     def select(self, cats_id=None, mode: CatInforSelectMode=CatInforSelectMode.BASIC):
         """
         目前的版本是 根据 cats_id 主键来查询。
-        :param cats_id:
+        :param cats_id: 目标数组；
         :param mode:
         :return:
         """

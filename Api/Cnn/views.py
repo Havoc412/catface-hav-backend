@@ -6,36 +6,28 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
-
 from catface_hav_v1.app import FaceAnalysis, DBSCAN
 from catface_hav_v1.consts import FACE_MODE
 from catface_hav_v1.utils import merge_breeds
-from Api.models import catInfor, catInforGroup, CatInforSelectMode, noticeGroup
 
-from DB import FaceEmbeddingDB, SQLiteDB
+# TODO 重构一下；采取 model 的前缀，以便代码的识别。
+from Api.models import catInfor, catInforGroup, CatInforSelectMode, noticeGroup
+from Api.Cnn import models
+
+from DB import FaceEmbeddingDB, SQLiteDB, MySQLDB
 from Errcode import Ecnn
 
-from .utils import test, load_temp_file, cal_conf
+from .utils import test, load_temp_file, cal_conf, handle_file_upload
 from utils import trans_breed
+
 
 def cnn_test(request):
     data = {
-        "status": 200,
+        "code": 200,
         "msg": test()
     }
     return JsonResponse(data)
 
-def handle_file_upload(f, u):
-    file_directory = './test/'
-    import os
-    if not os.path.exists(file_directory):
-        os.makedirs(file_directory)
-
-    file_path = os.path.join(file_directory, f'{u}_{f.name}')
-    with open(file_path, 'wb+') as destination:
-        for chunk in f.chunks():
-            destination.write(chunk)
-    return file_path
 
 # @csrf_exempt
 @require_POST
@@ -46,15 +38,15 @@ def detect_cat(request):
     :param request:
     :return:
     """
-    # FILE handle
+    # STAGE 1. FILE handle
     file = request.FILES.get('file')
     if not file:
-        return JsonResponse({'status': 400, 'message': 'No file provided'})
-    err, file_res = load_temp_file(file)  # 类似 go 的写法;
+        return JsonResponse({'code': 400, 'message': 'No file provided'})
+    err, file_res = load_temp_file(file)  # 类似 go 的写法;  # TODO 如果在同一台机器上，go 或许也能直接访问到。
     if err:
-        return JsonResponse({'status': 400, **file_res})
+        return JsonResponse({'code': 400, **file_res})
 
-    # start Embedding model
+    # STAGE 2.1 Start Embedding model；帧·特征提取
     data = file_res['data']
     app = FaceAnalysis(root="./catface_hav_v1/model_zoo/models", verbose=False)
     faces = app.get(data, mode=FACE_MODE.single)
@@ -63,11 +55,11 @@ def detect_cat(request):
         data.release()  # 释放视频文件
         os.unlink(file_res['tmp_file_path'])  # 删除临时文件
 
-    # handle faces to centers
-    """
+    # STAGE 2.2 Handle faces to centers；聚类
+    """ MODEL
     center: {
         'embedding': normed,
-        'cnt': power,  # cnt 同时也作为 breeds 中 conf 的【二次置信度】
+        'cnt': power,  # cnt 同时也作为 breeds 中 conf 的【二次置信度】 实现上采取 累乘 的方案。
         'breed': { # face.breed,
             'top5': [], # en; maybe more than 5.
             'conf': [],
@@ -75,7 +67,7 @@ def detect_cat(request):
     }
     """
     if len(faces) == 0:
-        return JsonResponse({ 'status': Ecnn.NoCatFaceGet })
+        return JsonResponse({'code': Ecnn.NoCatFaceGet})
     elif len(faces) == 1:
         face = faces[0]
         centers = [{
@@ -87,11 +79,11 @@ def detect_cat(request):
         dbscan = DBSCAN(eps=.3, verbose=False)
         centers = dbscan.filtrate_embeddings(faces)
 
-    # merge breed
-    """
+    # STAGE 2.3 Merge Breed
+    """ MODLE
     breed: {
-        'top5': [],
-        'conf': []
+        'top5': [v1, ..., v5],
+        'conf': [p1, ..., p5]
     }
     """
     if len(centers) > 1:
@@ -104,14 +96,14 @@ def detect_cat(request):
     else:
         breed = centers[0]['breed']
 
-    # CAL dot by Milvus
-    cats = {}  # 根据 embedding 计算出的 待筛选目标。
-    """
+    # STAGE 3 CAL dot by Milvus  # TODO 迁移到 ES. Reason Server 内存有限。
+    """ MODEL
     cat: {
         'conf': 
         'cnt': 
     }
     """
+    cats = {}  # 根据 embedding 计算出的 待筛选目标。
     cats_id = set()
     with FaceEmbeddingDB() as db:
         for center in centers:
@@ -128,6 +120,7 @@ def detect_cat(request):
                     cats_id.add(id)
                 cats[id]['cnt'] += 1 * center['cnt']
                 cats[id]['conf'] += dot * center['cnt']
+
             # when not any one get
             if not flag_save_any and results[0][1] > 0:
                 id, dot = results[0]
@@ -137,62 +130,78 @@ def detect_cat(request):
                 cats[id]['cnt'] += 1 * center['cnt']
                 cats[id]['conf'] += dot * center['cnt']
 
-    # Search SQLite3 to get basic data  # todo 同时查询 notice
-    cig = None
-    cats_infor = []
-    with SQLiteDB() as db:
-        cig = catInforGroup(db)
-        ret_cats = cig.select(cats_id, CatInforSelectMode.BASIC)
+    # Search SQLite3 to get basic data
+    # cig = None
+    # cats_infor = []
+    # with SQLiteDB() as db:
+    #     cig = catInforGroup(db)
+    #     ret_cats = cig.select(cats_id, CatInforSelectMode.BASIC)
+    #     # filter by breed
+    #     cats_id.clear()
+    #     if ret_cats is not None:
+    #         for catinfor in ret_cats:
+    #             if catinfor._breed_en not in breed['top5']:
+    #                 continue
+    #             conf = cal_conf(cats[catinfor._id], catinfor._breed_en, breed)
+    #             if conf > 0:
+    #                 cats_infor.append(catinfor.to_dict_with_conf(conf))  # 将计算出来的 conf 和基本信息整合起来。
+    #                 cats_id.add(catinfor._id)
+    #     del ret_cats
 
-        # filter by breed
-        cats_id.clear()
+    # TODO v2 face_breed top3
+    cats_fb_conf = []  # [{ id: xx, conf: 0.xx }, ...]
+    with MySQLDB() as db:
+        afbGroup = models.AnmFaceBreedGroup(db)
+        ret_cats = afbGroup.select(cats_id)
+        cats_id.clear()  # QUESTION
         if ret_cats is not None:
-            for catinfor in ret_cats:
-                if catinfor._breed_en not in breed['top5']:
-                    continue
-                conf = cal_conf(cats[catinfor._id], catinfor._breed_en, breed)
-                if conf > 0:
-                    cats_infor.append(catinfor.to_dict_with_conf(conf))
-                    cats_id.add(catinfor._id)
-        del ret_cats
+            for singleFaceBreed in ret_cats:  # INFO 原本是 5: 1，现在是 5: 3，计算方式自然不同
+                id_conf = singleFaceBreed.calTargetFaceBreedProbWithID(breed)
+                if id_conf['conf'] > 0:
+                    cats_fb_conf.append(id_conf)
+                    cats_id.add(id_conf['id'])
 
-    # Check and ret
-    if len(cats_infor) > 0:
+    # STAGE 4 Check and ret
+    print(cats_fb_conf)
+    if len(cats_fb_conf) > 0:
         # search SQLite3 to get notice
         notices = []
-        if len(cats_id) > 0:
-            with SQLiteDB() as db:
-                ng = noticeGroup(db)
-                results = ng.select(cats_id)
-                del ng
-                if results is not None:
-                    for notice in results:
-                        notices.append(notice.to_dict_with_name(cig.get_name_by_id(notice._cat_id)))
-        cats_infor_sorted = sorted(cats_infor, key=lambda x: x['conf'], reverse=True)
+        # if len(cats_id) > 0:
+        #     # TODO 还是需要迁移过去。
+        #     with SQLiteDB() as db:
+        #         ng = noticeGroup(db)
+        #         results = ng.select(cats_id)
+        #         del ng
+        #         if results is not None:
+        #             for notice in results:
+        #                 notices.append(notice.to_dict_with_name(cig.get_name_by_id(notice._cat_id)))
+        cats_infor_sorted = sorted(cats_fb_conf, key=lambda x: x['conf'], reverse=True)
         print(cats_infor_sorted)
         data = {
-            "status": 200,
-            "breed": trans_breed(breed['top5'][0]),
-            "cat_infor_list": cats_infor_sorted,
+            "code": 200,
+            "face_breed": trans_breed(breed['top5'][0]),  # INFO CatFace模型参考的 breed 特指 Face。
+            "cats_list": cats_infor_sorted,
             "notices": notices
         }
     else:
         data = {
-            "status": Ecnn.NoCatMatch,
-            "breed": trans_breed(breed['top5'][0])
+            "code": Ecnn.NoCatMatch,
+            "face_breed": trans_breed(breed['top5'][0])  # 给 Vue 作为 body_breed 的参考。
         }
     return JsonResponse(data)
 
+
+# TODO 关于图片等资源的保存，同步; IDEA 或许可以通过缓存机制 + redis 同步信息。
 def add_cat(request):
     if request.method == 'POST':
         # handle data sended
         file = request.FILES.get('file')
         if not file:
-            return JsonResponse({'status': 400, 'message': 'No file provided'})
+            return JsonResponse({'code': 400, 'message': 'No file provided'})
 
         err, file_res = load_temp_file(file)
         if err:
-            return JsonResponse({'status': 400, **file_res})
+            return JsonResponse({'code': 400, **file_res})
 
         infor = {
             'name': request.POST.get('name'),
@@ -220,7 +229,7 @@ def add_cat(request):
 
         # handle faces to centers
         if len(faces) == 0:
-            return JsonResponse({'status': Ecnn.NoCatFaceGet})
+            return JsonResponse({'code': Ecnn.NoCatFaceGet})
         elif len(faces) == 1:
             face = faces[0]
             centers = [{
@@ -229,7 +238,7 @@ def add_cat(request):
                 'breed': face.breed  # /add_cat/ 中 breed 没有什么用。
             }]
         else:
-            dbscan = DBSCAN(eps=.1, verbose=False)   # 设一个很低的 eps， 过滤基本的重复对象。
+            dbscan = DBSCAN(eps=.1, verbose=False)  # 设一个很低的 eps， 过滤基本的重复对象。
             centers = dbscan.filtrate_embeddings(faces)
 
         # Save to SQLite3
@@ -245,7 +254,6 @@ def add_cat(request):
         with FaceEmbeddingDB() as db:
             db.insert(embeddings, labels)
 
-        return JsonResponse({'status': 200, 'message': "Add Successfully!", 'data': catinfor._id})
+        return JsonResponse({'code': 200, 'message': "Add Successfully!", 'data': catinfor._id})
     else:
-        return JsonResponse({'status': 200, 'message': 'Invalid request'})
-
+        return JsonResponse({'code': 200, 'message': 'Invalid request'})

@@ -6,7 +6,7 @@ from django.views.decorators.http import require_POST, require_GET
 
 from Api.models import catInforGroup, CatInforSelectMode
 from DB import SQLiteDB
-from utils import haversine_2
+from .utils import haversine_2
 
 # Create your views here.
 def link_test(request):
@@ -16,31 +16,31 @@ def link_test(request):
     }
     return JsonResponse(data)
 
-@require_GET
-def search_sql(request):
-    """ 读取 sqlite，前端展示所有数据。 """
-    # get data
-    cat_infor = []
-    with SQLiteDB() as db:
-        cig = catInforGroup(db)
-        rets = cig.select(mode=CatInforSelectMode.BASIC)
-        del cig
-
-        if rets is not None:
-            for ret in rets:
-                infor = {
-                    "id": ret._id,
-                    "name": ret._name,
-                    "breed": ret._breed,
-                    "gender": ret._gender,
-                }
-                cat_infor.append(infor)
-    # return data
-    data = {
-        "status": 200,
-        "cat_infor_list": cat_infor
-    }
-    return JsonResponse(data)
+# @require_GET
+# def search_sql(request):
+#     """ 读取 sqlite，前端展示所有数据。 """
+#     # get data
+#     cat_infor = []
+#     with SQLiteDB() as db:
+#         cig = catInforGroup(db)
+#         rets = cig.select(mode=CatInforSelectMode.BASIC)
+#         del cig
+#
+#         if rets is not None:
+#             for ret in rets:
+#                 infor = {
+#                     "id": ret._id,
+#                     "name": ret._name,
+#                     "breed": ret._breed,
+#                     "gender": ret._gender,
+#                 }
+#                 cat_infor.append(infor)
+#     # return data
+#     data = {
+#         "status": 200,
+#         "cat_infor_list": cat_infor
+#     }
+#     return JsonResponse(data)
 
 @require_POST
 def filter_by_poi(request):

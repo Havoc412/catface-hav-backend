@@ -1,15 +1,21 @@
 #!/usr/bin/env python
-"""Django's command-line utility for administrative tasks."""
+"""
+Django's command-line utility for administrative tasks.
+项目入口。
+"""
 import os
 import sys
 
 from dotenv import load_dotenv
-load_dotenv("./DB/.env")
-
+load_dotenv("./DB/.env")  # 环境装载，全生命周期有效
 
 from DB import Milvus
 
 def check_database_available():
+    """
+    Milvus DB 依赖检查，确保启动时，Milvus 服务启动。
+    :return:
+    """
     milvus = Milvus()
     print("🐱 Milivus is available.")
 
