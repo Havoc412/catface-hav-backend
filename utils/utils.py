@@ -17,4 +17,4 @@ def trans_breedEn_to_idx(word):
     :param word:
     :return:
     """
-    return BREED_EN_TO_IDX[word]
+    return BREED_EN_TO_IDX.index(word)
