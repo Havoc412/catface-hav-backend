@@ -18,10 +18,9 @@ def cal_conf(cat, cat_breed, face_breed):
 
     breed_conf = 0
     for breed, conf in zip(face_breed['top5'], face_breed['conf']):
-        print(breed, conf, trans_breedEn_to_idx(breed))
         breed_conf += cat_breed.get(trans_breedEn_to_idx(breed), 0) * conf
 
-    print("🚩", base_conf, breed_conf)
+    print("🚩 Conf:", base_conf, breed_conf)
 
     return int(base_conf * breed_conf * 100)
 

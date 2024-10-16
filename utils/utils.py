@@ -14,6 +14,7 @@ def trans_breed(word, en_to_cn=True):
 def trans_breedEn_to_idx(word):
     """
     将 breeds_en 转换为 breeds_idx
+    由于 MySQL index 从 1 开始。
     :param word:
     :return:
     """
