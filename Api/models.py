@@ -4,44 +4,40 @@ from enum import Enum
 from django.db import models
 
 from DB.SQLite import SQLiteDB
+from DB.MySQL import MySQLDB
 from utils import trans_breed
 
-# Create your models here.
-class catInfor(models.Model):
-    # DEFAULT: id = models.AutoField(primary_key=True)
-    name = models.CharField(verbose_name="主名", max_length=10)
-    sex = models.CharField(verbose_name="性别", max_length=10)
-    breed = models.CharField(verbose_name="花色", max_length=10)
-    breed_en = models.CharField(verbose_name="花色_en", max_length=10, default="unknown")
-    description = models.CharField(verbose_name="基本介绍", max_length=100, default="")
-    # 增加 经纬度（x.xxxxxx 6位浮点数） # todo INFO 默认值先设置为 C4 了.
-    activity_radius = models.IntegerField(verbose_name="活动半径（米）", default=100)
-    latitude = models.DecimalField(verbose_name="纬度", max_digits=9, decimal_places=6, default=30.533741)
-    longitude = models.DecimalField(verbose_name="经度", max_digits=9, decimal_places=6, default=114.361543)
+# ----------------------- Animal Information ------------------------- #
 
-    _attrs = ['name', 'sex', 'breed', 'breed_en', 'description', 'activity_radius', 'latitude', 'longitude']
-    _table_name = "Api_catinfor"
+
+# Create your models here.
+class Animal:
+    _attrs = []
+    _table_name = "animals"
 
     def __init__(self, **kwargs):
-        """
+        """v
         :param kwargs: 采取字典的输入形式
         """
         # basic
         self._id = kwargs.get('id', None)
         self._name = kwargs.get('name', None)
-        self._gender = kwargs.get('sex', None)
+        self._nick_names = kwargs.get('nick_names', None)
+        self._gender = kwargs.get('gender', None)
+        self._sterilization = kwargs.get('sterilization', None)
+        self._status = kwargs.get('status', None)
         self._breed = kwargs.get('breed', None)
-        self._breed_en = kwargs.get('breed_en', None)
-        # description
-        self._description = kwargs.get('description', "")
-        # poi
-        self._activity_radius = kwargs.get('activity_radius', 100)
-        self._latitude = kwargs.get('latitude', 30.533741)
-        self._longitude = kwargs.get('longitude', 114.361543)
+        self._description = kwargs.get('description', None)
+        # self._birthday = kwargs.get('birthday', None)
+        # self._tags = kwargs.get('tags', None)
 
-        # 特殊处理：如果 breed_ch 存在且 breed_en 未设置，尝试转换 breed
-        if self._breed_en is None and self._breed is not None:
-            self._breed_en = trans_breed(self._breed, en_to_cn=False)
+        # poi
+        self._activity_radius = kwargs.get('activity_radius', None)
+        self._latitude = kwargs.get('latitude', None)
+        self._longitude = kwargs.get('longitude', None)
+        # face breed
+        self._face_breeds = kwargs.get('face_breeds', None)
+        self._face_breed_probs = kwargs.get('face_breed_probs', None)
 
         # 检查是否存在未知的额外参数，增加灵活性
         for key, value in kwargs.items():
@@ -79,13 +75,35 @@ class catInfor(models.Model):
 
         print(self._id)
 
+    def getFaceBreedMap(self):
+        if self._face_breeds is None or self._face_breed_probs is None:
+            return None
+
+        res = {}
+        face_breeds = self._face_breeds.split(',')
+        face_breed_probs = self._face_breed_probs.split(',')
+        for breed, prob in zip(face_breeds, face_breed_probs):
+            res[int(breed)] = float(prob)
+        return res
+
     def to_dict_with_conf(self, conf=None):
+        """
+        Used by Cnn Part
+        :param conf:
+        :return:
+        """
         assert conf is not None
         return {
             "id": self._id,
             "name": self._name,
-            "breed": self._breed, # ch
+            "nick_names": self._nick_names,
             "gender": self._gender,
+            "breed": self._breed,
+            "status": self._status,
+            "avatar": self._avatar,
+            "latitude": self._latitude,
+            "longitude": self._longitude,
+            "activity_radius": self._activity_radius,
             "conf": conf
         }
 
@@ -106,17 +124,19 @@ func：作为媒介交互 SQLite3
 
 ps. 尽可能解耦，不同储存容器中的顺序并不重要；以及，一一对应。
 """
-class CatInforSelectMode(Enum):
-    BASIC = ["id", "name", "sex", "breed", "breed_en"]
+class AnimalSelectMode(Enum):
+    BASIC = ["id", "name", "nick_names", "gender", "breed", "status", "avatar",
+             "latitude", "longitude", "activity_radius",
+             "face_breeds", "face_breed_probs"]
     POI = ["id", "longitude", "latitude", "activity_radius"]
-    RAG_BASIC = ["id", "name", "sex", "breed", "description"]
+    RAG_BASIC = ["id", "name", "sex", "breed", "descr  iption"]
 
-class catInforGroup:
-    _table_name = "Api_catinfor"
-    def __init__(self, db: SQLiteDB = None):
+class AnimalManager:
+    _table_name = "animals"
+    def __init__(self, db: MySQLDB = None):
         assert db is not None
         self._db = db
-        self._catInforList = []
+        self._animalsList = []
         self._attrs = None
 
         # link to noticeGroup
@@ -128,17 +148,13 @@ class catInforGroup:
         :param cats_id:
         :return:
         """
-        self._catInforList = []
+        self._animalsList = []
         self._attrs = mode.value
         if cats_id is not None and not isinstance(cats_id, list):
             cats_id = list(cats_id)
         return cats_id
 
-    def tuple_to_dict(self, res):
-        """ 将 SQLite 返回的 tuple 转换为 dict 格式 """
-        return {attr: val for attr, val in zip(self._attrs, res)}
-
-    def select(self, cats_id=None, mode: CatInforSelectMode=CatInforSelectMode.BASIC):
+    def selectByID(self, cats_id=None, mode: AnimalSelectMode=AnimalSelectMode.BASIC):
         """
         目前的版本是 根据 cats_id 主键来查询。
         :param cats_id: 目标数组；
@@ -154,7 +170,7 @@ class catInforGroup:
 
         # 是否增加 id 的条件查询。
         if cats_id is not None:
-            placeholders = ', '.join('?' for _ in cats_id)  # 创建参数占位符
+            placeholders = ', '.join('%s' for _ in cats_id)  # 创建参数占位符
             query += f" WHERE id IN ({placeholders})"
 
         # exe serch
@@ -164,11 +180,11 @@ class catInforGroup:
         if results is None:
             return None
         for res in results:
-            catinfor = catInfor(**self.tuple_to_dict(res))  # tip 注意解包
-            self._catInforList.append(catinfor)
+            aniaml = Animal(**res)  # tip 注意解包
+            self._animalsList.append(aniaml)
 
         # ret：use or not
-        return self._catInforList
+        return self._animalsList
 
     def get_name_by_id(self, cat_id):
         """
@@ -176,10 +192,12 @@ class catInforGroup:
         :param cat_id:
         :return:
         """
-        for catinfor in self._catInforList:
+        for catinfor in self._animalsList:
             if catinfor._id == cat_id:
                 return catinfor._name
         return "No Name"  # todo 彩蛋()
+
+# ----------------------- Animal Notice ------------------------- #
 
 class notice(models.Model):
     cat_id = models.IntegerField(verbose_name="猫的id")

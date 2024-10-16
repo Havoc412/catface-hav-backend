@@ -1,3 +1,4 @@
+from utils import trans_breedEn_to_idx
 
 def test():
     return "Cnn test."
@@ -13,7 +14,14 @@ def cal_conf(cat, cat_breed, face_breed):
     :param face_breed: FACE 中这只猫猫得到的 breed 结果。
     :return:
     """
-    breed_conf = face_breed['conf'][face_breed['top5'].index(cat_breed)]
-    conf = cat['conf'] / cat['cnt']
-    return int(conf * breed_conf * 100)
+    base_conf = cat['conf'] / cat['cnt']
+
+    breed_conf = 0
+    for breed, conf in zip(face_breed['top5'], face_breed['conf']):
+        print(breed, conf, trans_breedEn_to_idx(breed))
+        breed_conf += cat_breed.get(trans_breedEn_to_idx(breed), 0) * conf
+
+    print("🚩", base_conf, breed_conf)
+
+    return int(base_conf * breed_conf * 100)
 

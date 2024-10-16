@@ -35,6 +35,7 @@ class MySQLDB:
         """ 执行 SQL 查询并返回结果 """
         try:
             with self.conn.cursor(pymysql.cursors.DictCursor) as cursor:
+                print("🐱", query, params)
                 cursor.execute(query, params or ())
                 results = cursor.fetchall()
                 return results
