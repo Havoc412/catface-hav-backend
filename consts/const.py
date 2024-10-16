@@ -8,7 +8,11 @@ BREED_EN_TO_CN = {
     'li': "狸花猫",
     'liwhite': "狸白猫",
     'flower': "三花猫",
-    'hawksbill': "玳瑁猫"
+    'tortoiseshell': "玳瑁猫",
+
+    # TODO 之后优化 face_breed 模型再说。
+    'jianzhou': "简州猫",
+    'color': "彩狸猫"
 }
 
 BREED_CN_TO_EN = { v: k for k, v in BREED_EN_TO_CN.items() }
