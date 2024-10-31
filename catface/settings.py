@@ -27,7 +27,8 @@ DEBUG = True
 
 ALLOWED_HOSTS = [
     "vv9710nr2082.vicp.fun",
-    "127.0.0.1"
+    "127.0.0.1",
+    "localhost",
 ]
 
 

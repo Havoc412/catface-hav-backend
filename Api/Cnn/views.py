@@ -37,7 +37,7 @@ def detect_cat(request):
     :param request:
     :return:
     """
-    # STAGE 1. FILE handle
+    # STAGE-1 FILE handle
     file = request.FILES.get('file')
     if not file:
         return JsonResponse({'code': 400, 'message': 'No file provided'})
@@ -45,7 +45,7 @@ def detect_cat(request):
     if err:
         return JsonResponse({'code': 400, **file_res})
 
-    # STAGE 2.1 Start Embedding model；帧·特征提取
+    # STAGE-2.1 Start Embedding model；帧·特征提取
     data = file_res['data']
     app = FaceAnalysis(root="./catface_hav_v1/model_zoo/models", verbose=False)
     faces = app.get(data, mode=FACE_MODE.single)
@@ -54,7 +54,7 @@ def detect_cat(request):
         data.release()  # 释放视频文件
         os.unlink(file_res['tmp_file_path'])  # 删除临时文件
 
-    # STAGE 2.2 Handle faces to centers；聚类
+    # STAGE-2.2 Handle faces to centers；聚类
     """ MODEL
     center: {
         'embedding': normed,
@@ -78,7 +78,7 @@ def detect_cat(request):
         dbscan = DBSCAN(eps=.3, verbose=False)
         centers = dbscan.filtrate_embeddings(faces)
 
-    # STAGE 2.3 Merge Breed
+    # STAGE-2.3 Merge Breed
     """ MODLE
     breed: {
         'top5': [v1, ..., v5],
@@ -95,7 +95,7 @@ def detect_cat(request):
     else:
         breed = centers[0]['breed']
 
-    # STAGE 3 CAL dot by Milvus  # TODO 迁移到 ES. Reason Server 内存有限。
+    # STAGE-3 CAL dot by Milvus  # TODO 迁移到 ES. Reason Server 内存有限。
     """ MODEL
     cat: {
         'conf': 
@@ -128,7 +128,7 @@ def detect_cat(request):
                 cats[id]['cnt'] += 1 * center['cnt']
                 cats[id]['conf'] += dot * center['cnt']
 
-    # STAGE 获取 cats_infor 并用 breed 计算 conf
+    # STAGE-4 获取 cats_infor 并用 breed 计算 conf
     animalManager = None
     cats_infor = []
     with MySQLDB() as db:
