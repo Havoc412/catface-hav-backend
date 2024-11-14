@@ -7,5 +7,5 @@ urlpatterns = [
     # path("filter_by_poi/", views.filter_by_poi, name="根据 poi 过滤 catface 初筛的目标。"),  # TODO 迁移到 Go 中
 
     path("cnn/", include('Api.Cnn.urls')),
-    # path("rag/", include('Api.Rag.urls')),
+    path("rag/", include('Api.Rag.urls')),
 ]
