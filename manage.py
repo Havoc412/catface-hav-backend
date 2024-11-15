@@ -8,6 +8,7 @@ import sys
 
 from dotenv import load_dotenv
 load_dotenv("./DB/.env")  # 环境装载，全生命周期有效
+load_dotenv(".env")
 
 from DB import Milvus
 
@@ -34,5 +35,5 @@ def main():
 
 
 if __name__ == '__main__':
-    check_database_available()
+    # check_database_available()
     main()
