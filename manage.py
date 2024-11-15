@@ -10,15 +10,15 @@ from dotenv import load_dotenv
 load_dotenv("./DB/.env")  # 环境装载，全生命周期有效
 load_dotenv(".env")
 
-from DB import Milvus
-
-def check_database_available():
-    """
-    Milvus DB 依赖检查，确保启动时，Milvus 服务启动。
-    :return:
-    """
-    milvus = Milvus()
-    print("🐱 Milivus is available.")
+# from DB import Milvus
+#
+# def check_database_available():
+#     """
+#     Milvus DB 依赖检查，确保启动时，Milvus 服务启动。
+#     :return:
+#     """
+#     milvus = Milvus()
+#     print("🐱 Milivus is available.")
 
 def main():
     """Run administrative tasks."""

@@ -1,6 +1,7 @@
-from Api.Rag import views
 from django.urls import path
 
+from Api.Rag.views import bge
+
 urlpatterns = [
-    path("bge_embedding/", views.bge_embedding, name="bge_embedding"),
+    path("bge_embedding/", bge.bge_embedding, name="bge_embedding"),
 ]
