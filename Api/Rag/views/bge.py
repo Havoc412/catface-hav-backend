@@ -18,7 +18,7 @@ def bge_embedding(request):
 
     # STAGE 2.
     bge_model = BGE()
-    embedding = bge_model.get_embedding(text)
+    embedding = bge_model.get_embedding(''.join(text))
 
     # ret
     return JsonResponse({'status': 200, 'message': 'Success', 'embedding': embedding.tolist()})
